@@ -1,0 +1,11 @@
+---------[I]---------
+1000*1000px
+50 LightPoints
+40 maxRebounds
+
+-> Without Bounding Boxes : 
+	3:52
+
+-> With Bounding Box : 
+
+---------[II]---------
