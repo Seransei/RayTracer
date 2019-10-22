@@ -182,28 +182,50 @@ void Raytracer::createScene() {
 				Vector3<float>((float)x, (float)y, 0),//point
 				cameraDirection.normalize()//direction
 			};
-			ppm(x, y).color = castRay(r, 2).clamp255();
+			ppm(x, y).color = castRay(r, 4).clamp255();
 		}
 	ppm.save("./fileOut.ppm");
 }
 
-void Raytracer::sortScene()
+void Raytracer::sortSphereList(std::vector<Sphere> spheres)
 {
-	//TODO
+	float
+		minX = spheres[0].center.x, maxX = spheres[0].center.x,
+		minY = spheres[0].center.y, maxY = spheres[0].center.y,
+		minZ = spheres[0].center.z, maxZ = spheres[0].center.z;
+
+	for (int i = 1; i < spheres.size(); i++) {
+		minX = (spheres[i].center.x < minX) ? spheres[i].center.x : minX;
+		maxX = (spheres[i].center.x > maxX) ? spheres[i].center.x : maxX;
+
+		minY = (spheres[i].center.y < minY) ? spheres[i].center.y : minY;
+		maxY = (spheres[i].center.y > maxY) ? spheres[i].center.y : maxY;
+
+		minZ = (spheres[i].center.z < minZ) ? spheres[i].center.z : minZ;
+		maxZ = (spheres[i].center.z > maxZ) ? spheres[i].center.z : maxZ;
+	}
+
+	float
+		deltaX = abs(maxX - minX),
+		deltaY = abs(maxY - minY),
+		deltaZ = abs(maxZ - minZ);
+
+	if (deltaX >= deltaY && deltaX >= deltaZ)
+		return std::sort(spheres.begin(), spheres.end() + 1, compareX);
+	else if (deltaY >= deltaX && deltaY >= deltaZ)
+		return std::sort(spheres.begin(), spheres.end() + 1, compareY);
+	else
+		return std::sort(spheres.begin(), spheres.end() + 1, compareZ);
 }
 
-Vector3<float> Raytracer::castRay(Ray ray, int iteration)
+IntersectedObject Raytracer::intersectRay(Ray ray, std::vector<Sphere> scene)
 {
-	Vector3<float> newColor(0, 0, 0);//nouvelle couleur a calculer
-	Vector3<float> objColor(0, 0, 0);
-
 	int sphIndex = -1;
 	std::optional<float> min_t;//va recuperer le t du premier objet touché
-	//----Parcours des spheres de la scene----
 	for (unsigned int i = 0; i < scene.size(); i++)
 	{
 		//----Impact a la sphere----
-		std::optional<float> current_t = scene[i].intersect(ray);
+		std::optional<float> current_t = scene[i].intersect(ray);//impact rayon-sphere
 		if (current_t.has_value() && (!min_t.has_value() || (min_t.has_value() && current_t.value() < min_t.value())))
 		{
 			min_t = current_t;//premier impact courant du rayon
@@ -211,20 +233,33 @@ Vector3<float> Raytracer::castRay(Ray ray, int iteration)
 		}
 	}
 
+	return IntersectedObject(min_t, scene[sphIndex]);
+}
+
+Vector3<float> Raytracer::castRay(Ray ray, int iteration)
+{
+	Vector3<float> newColor(0, 0, 0);//nouvelle couleur a calculer
+	Vector3<float> objColor(0, 0, 0);
+	
+	IntersectedObject intSphere = intersectRay(ray, scene);
+
 	//----Sphere trouvee----
-	if (min_t.has_value())
+	if (intSphere.t.has_value())
 	{
-		Sphere hitSphere = scene[sphIndex];
-		Vector3<float> hitPos(ray.source + min_t.value() * ray.dir);//point d'impact à la sphere
+		Sphere hitSphere = intSphere.sphere;
+		Vector3<float> hitPos(ray.source + intSphere.t.value() * ray.dir);//point d'impact à la sphere
 		Vector3<float> hitNormal((hitPos - hitSphere.center).normalize());//normale a l'impact, normalisé
 
 		//----Parcours des lumieres----
 		for (auto& li : lights)
 			for (int nbL = 0; nbL < nbLightPoints; nbL++)
 			{
-				Vector3<float> hitToLight((li.pos - hitPos + Vector3<float>((float)(rand() % (lightSize / 2) - lightSize),
-					(float)(rand() % (lightSize / 2) - lightSize),
-					(float)(rand() % (lightSize / 2) - lightSize))));//vecteur impact vers lumiere
+				float
+					randX = (float)(rand() % (lightSize / 2) - lightSize),
+					randY = (float)(rand() % (lightSize / 2) - lightSize),
+					randZ = (float)(rand() % (lightSize / 2) - lightSize);
+
+				Vector3<float> hitToLight((li.pos - hitPos + Vector3<float>(randX, randY, randZ)));//vecteur impact vers lumiere
 				
 				//----Lancer de rayon du point d'impact a la sphere vers la lumiere ----
 				Ray toLight{
@@ -232,16 +267,9 @@ Vector3<float> Raytracer::castRay(Ray ray, int iteration)
 					hitToLight.normalize()//dir
 				};
 				
-				//----Parcours des obstacles potentiels----
-				std::optional<float> min_t_sphToLi;
-				for (unsigned int i = 0; i < scene.size(); i++)
-				{
-					std::optional<float> t_sphToLi = scene[i].intersect(toLight);//impact rayon-sphere
-					if (t_sphToLi.has_value() && (!min_t_sphToLi.has_value() || (min_t_sphToLi.has_value() && t_sphToLi.value() < min_t_sphToLi.value())))
-						min_t_sphToLi = t_sphToLi;//premier impact courant du rayon
-				}
+				IntersectedObject intObstacle = intersectRay(toLight, scene);
 
-				if (!min_t_sphToLi.has_value() || min_t_sphToLi.value() > hitToLight.norm() + 0.01f)//s'il n'ya pas d'obstacles jusque la lumiere
+				if (!intObstacle.t.has_value() || intObstacle.t.value() > hitToLight.norm() + 0.01f)//s'il n'ya pas d'obstacles jusque la lumiere
 				{
 					objColor += 
 						li.intensity *
@@ -278,6 +306,8 @@ std::variant<Node*, Leaf> Raytracer::createBVH(const std::vector<Sphere> spheres
 	if (spheres.size() == 1)
 		return Leaf(spheres[0]);
 	else {
+		sortSphereList(spheres);
+
 		std::vector<Sphere> splittedList1;
 		splittedList1.insert(splittedList1.begin(), spheres.begin(), spheres.begin() + std::floor(spheres.size() / 2));
 
@@ -319,3 +349,7 @@ float Raytracer::clamp1(float n)
 {
 	return (n < 0) ? 0 : (n > 1) ? 1 : n;
 }
+
+bool Raytracer::compareX(Sphere a, Sphere b){ return a.center.x < b.center.x; }
+bool Raytracer::compareY(Sphere a, Sphere b) { return a.center.y < b.center.y; }
+bool Raytracer::compareZ(Sphere a, Sphere b) { return a.center.z < b.center.z; }

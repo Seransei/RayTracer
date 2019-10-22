@@ -122,7 +122,12 @@ struct BoundingBox
 	}
 };
 
-struct IntersectResult {
-	Sphere sphere;
+struct IntersectedObject {
 	std::optional<float> t;
+	Sphere sphere;
+
+	IntersectedObject(std::optional<float> tt, Sphere s) {
+		t = tt;
+		sphere = s;
+	}
 };

@@ -34,10 +34,14 @@ public:
 
 	void initScene();
 	void createScene();
-	void sortScene();
+	void sortSphereList(std::vector<Sphere> spheres);
+	IntersectedObject intersectRay(Ray ray, std::vector<Sphere> scene);
 	Vector3<float> castRay(Ray, int);
 	std::variant<Node*, Leaf> createBVH(const std::vector<Sphere> spheres);
 	BoundingBox createBoundingBox(std::vector<Sphere> spheres);
 	float clamp1(float);
+	bool compareX(Sphere a, Sphere b);
+	bool compareY(Sphere a, Sphere b);
+	bool compareZ(Sphere a, Sphere b);
 };
 
