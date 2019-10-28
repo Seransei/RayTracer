@@ -103,11 +103,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Leaf.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="Node.cpp" />
-    <ClCompile Include="PPM.cpp" />
-    <ClCompile Include="Raytracer.cpp" />
+    <ClCompile Include="src\Leaf.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\Node.cpp" />
+    <ClCompile Include="src\PPM.cpp" />
+    <ClCompile Include="src\Raytracer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -117,13 +117,13 @@
     </Text>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Leaf.h" />
-    <ClInclude Include="Node.h" />
-    <ClInclude Include="PortableAnymap.h" />
-    <ClInclude Include="PPM.h" />
-    <ClInclude Include="Raytracer.h" />
-    <ClInclude Include="Tools.h" />
-    <ClInclude Include="Vector3.hpp" />
+    <ClInclude Include="src\Leaf.h" />
+    <ClInclude Include="src\Node.h" />
+    <ClInclude Include="src\PortableAnymap.h" />
+    <ClInclude Include="src\PPM.h" />
+    <ClInclude Include="src\Raytracer.h" />
+    <ClInclude Include="src\Tools.h" />
+    <ClInclude Include="src\Vector3.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
