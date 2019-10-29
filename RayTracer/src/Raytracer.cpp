@@ -86,7 +86,12 @@ std::optional<IntersectedObject> Raytracer::rayObstaclesBVH(Ray ray, std::varian
 
 	if (auto node = std::get_if<Node*>(&currBVH)) 
 	{
-		auto t = 
+		auto t = (**node).boundingBox.intersect(ray);
+		
+		auto t_left = rayObstaclesBVH(ray, (**node).left);		
+		auto t_right = rayObstaclesBVH(ray, (**node).right);
+
+		return min(t_left, t_right);
 	}
 
 	return std::nullopt;
