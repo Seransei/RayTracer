@@ -31,9 +31,9 @@ void Raytracer::createScene() {
 }
 
 void Raytracer::createSceneBVH() {
-	srand(time(NULL));//seed pour la generation de nombre aleatoire
+	srand(time(NULL)); // seed pour la generation de nombre aleatoire
 
-	createBVH(scene);
+	createBVH(scene); // creation de la structure acceleratrice
 
 	//----Parcours des pixels----
 	PPM ppm(H, W, 255);
@@ -88,10 +88,10 @@ std::optional<IntersectedObject> Raytracer::rayObstaclesBVH(Ray ray, std::varian
 	{
 		auto t = (**node).boundingBox.intersect(ray);
 		
-		auto t_left = rayObstaclesBVH(ray, (**node).left);		
-		auto t_right = rayObstaclesBVH(ray, (**node).right);
+		auto r_left = rayObstaclesBVH(ray, (**node).left);		
+		auto r_right = rayObstaclesBVH(ray, (**node).right);
 
-		return min(t_left, t_right);
+		return min(r_left, r_right);
 	}
 
 	return std::nullopt;
@@ -107,6 +107,55 @@ Vector3<float> Raytracer::castRayToBVH(Ray ray, int iteration)
 
 	std::optional<IntersectedObject> intSphere = rayObstaclesBVH(ray, bvh);
 
+	if (intSphere.has_value() && intSphere.value().t.has_value())
+	{
+		Sphere hitSphere = intSphere.value().sphere;
+		Vector3<float> hitPos(ray.source + intSphere.value().t.value() * ray.dir);//point d'impact à la sphere
+		Vector3<float> hitNormal((hitPos - hitSphere.center).normalize());//normale a l'impact, normalisé
+
+		//----Parcours des lumieres----
+		for (auto& li : lights)
+			for (int nbL = 0; nbL < nbLightPoints; nbL++)
+			{
+				float
+					randX = (float)(rand() % (lightSize / 2) - lightSize),
+					randY = (float)(rand() % (lightSize / 2) - lightSize),
+					randZ = (float)(rand() % (lightSize / 2) - lightSize);
+
+				Vector3<float> hitToLight((li.pos - hitPos + Vector3<float>(randX, randY, randZ)));//vecteur impact vers lumiere
+
+				//----Lancer de rayon du point d'impact a la sphere vers la lumiere ----
+				Ray toLight{
+					hitPos + 0.01f * hitToLight.normalize(),//point
+					hitToLight.normalize()//dir
+				};
+
+				std::optional<IntersectedObject> intObstacle = rayObstaclesBVH(toLight, bvh);
+
+				if (intObstacle.has_value())
+					if (!intObstacle.value().t.has_value() || intObstacle.value().t.value() > hitToLight.norm() + 0.01f)//s'il n'ya pas d'obstacles jusque la lumiere
+					{
+						objColor +=
+							li.intensity *
+							clamp1(hitToLight.normalize().dot(hitNormal)) *
+							li.color.value *
+							hitSphere.color.value
+							/ pow(hitToLight.norm(), 2)
+							/ (float)nbLightPoints;
+					}
+			}
+
+		//----Miroir----
+		if (iteration > 0)
+		{
+			Vector3<float> refDir = 2 * ((-1) * ray.dir).dot(hitNormal) * hitNormal + ray.dir;//direction du rayon reflechi
+			Ray ref{
+				hitPos + 0.01f * refDir.normalize(),//position
+				refDir.normalize()//direction
+			};
+			newColor = (1 - hitSphere.albedo) * objColor + hitSphere.albedo * castRay(ref, iteration - 1);
+		}
+	}
 }
 
 Vector3<float> Raytracer::castRay(Ray ray, int iteration)
